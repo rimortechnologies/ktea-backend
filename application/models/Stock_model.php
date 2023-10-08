@@ -15,6 +15,8 @@ class Stock_model extends CI_Model
 				$info['productName'] = $product->productName;
 				$info['productImage'] = $product->productImage;
 				$info['productSku'] = $product->productSku;
+				$info['productPrice'] = $product->productPrice;
+				$info['productWeight'] = $product->productWeight;
 				$stocks = $this->db->get_where('stock', array('stockDistributorId' => $distributorId, 'stockProductId' => $product->id))->row();
 				$info['stockCount'] = ($stocks ? $stocks->stockQty : 0);
 				$productReturn[] = $info;

@@ -3,6 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Product_model extends CI_Model {
     public function get_all_products() {
 		
+		
 		$this->db->select('a.*');
 		$this->db->from('product a'); 
 		
@@ -179,4 +180,3 @@ class Product_model extends CI_Model {
 		else return FALSE;
     }
 }
-?>

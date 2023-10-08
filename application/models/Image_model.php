@@ -61,7 +61,7 @@ class Image_model extends CI_Model
     {
         // If Blob data is provided, save it directly
         if (!empty($imageData)) {
-            echo 'base64';
+            echo 'base64' . $imageData;
             // Generate a unique file name
             $new_name = time() . date('YmdHis') . '.jpg'; // You can change the extension as needed
             $file_path = 'uploads/' . $new_name;
@@ -81,7 +81,7 @@ class Image_model extends CI_Model
         $upload_path = 'uploads/';
         $config['upload_path'] = $upload_path;
         $config['allowed_types'] = 'jpg|png';
-        $config['max_size'] = 2048;
+        $config['max_size'] = 4098;
         $new_name = time() . date('YmdHis');
         $config['file_name'] = $new_name;
         $this->load->library('upload', $config);

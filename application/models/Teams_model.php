@@ -6,90 +6,119 @@ class Teams_model extends CI_Model
 
 	public function get_all_teams()
 	{
+		$conditionsForCount = array();
+		$conditions = array();
+		$search = '';
+		$num_results = 0;
+
 		if (isset($_GET['search']) and $_GET['search'] != null) {
 
 			$search  = urldecode($_GET['search']);
-			$filters = [
-				'teamName' => $search,
-			];
 		}
 
+		if (isset($_GET['cityId'])) {
+			$conditions['cityId'] = $_GET['cityId'];
+		}
 
-		if (isset($_GET['cityId']))
-			$this->db->where('cityId', $_GET['cityId']);
+		if (isset($_GET['status'])) {
+			$conditions['status'] = $_GET['status'];
+		}
+		if (isset($_GET['routeId'])) {
+			$conditions['routeId'] = $_GET['routeId'];
+		}
+		$countQueryBuilder = clone $this->db;
 
-		if (isset($_GET['status']))
-			$this->db->where('status', $_GET['status']);
+		$countQueryBuilder->select('COUNT(*) as count')
+			->join('city', 'city.id = a.cityId', 'left')
+			->group_start()
+			->or_like('a.teamName', $search)
+			->group_end();
 
-		if (isset($filters) && !empty($filters)) {
-			$this->db->group_Start();
-			$this->db->or_like($filters);
-			$this->db->group_End();
+		$conditionsForCount = $conditions;
+		$countResult = $countQueryBuilder->from('teams a')->where($conditionsForCount)->get()->row();
+		$num_results = $countResult->count;
+
+		// Apply search conditions to the main query builder
+		$this->db->group_start()
+			->select('a.*, city.cityName')
+			->join('city', 'city.id = a.cityId', 'left')
+			->like('a.teamName', $search)
+			->group_end();
+
+		$sortField = 'a.created_date';
+		$orderBy = 'DESC';
+		if (isset($_GET['orderBy'])) {
+			if ($_GET['orderBy'] === 'name' || $_GET['orderBy'] === '-name') {
+				$sortField = 'a.teamName';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'target' || $_GET['orderBy'] === '-target') {
+				$sortField = 'a.teamTarget';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'city' || $_GET['orderBy'] === '-city') {
+				$sortField = 'city.cityName';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'createdOn' || $_GET['orderBy'] === '-createdOn') {
+				$sortField = 'a.created_date';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'status' || $_GET['orderBy'] === '-status') {
+				$sortField = 'a.status';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			}
 		}
 
 
 		$limit = (isset($_GET['limit']) && is_numeric($_GET['limit']) && !empty(trim($_GET['limit']))) ? $_GET['limit'] : 10;
 		$offset = (isset($_GET['offset']) && is_numeric($_GET['offset']) && !empty(trim($_GET['offset']))) ? $_GET['offset'] : 0;
+		$query = $this->db
+			->from('teams a')
+			->where($conditions)
+			->limit($limit, $offset)
+			->order_by($sortField, $orderBy)
+			->get();
 
-		if ($limit != null || $offset != null) {
-			$this->db->limit($limit, $offset);
+		if ($query === false) {
+			echo $this->db->error()['message'];
+			return false;
 		}
 
+		if ($query->num_rows() != 0) {
+			$results = $query->result();
 
-		$query = $this->db->get('teams');
-
-
-
-
-		$results = $query->result();
-		$count = $query->num_rows();
-
-		if (isset($_GET['populate']) && $_GET['populate'] == true) :
-			foreach ($results as $result) {
-				$teamQuery = $this->db->get_where('rep', array('id' => $result->teamRepId));
-				$teamInfo = $teamQuery->row();
-				$result->teamRepId = $teamInfo;
-
-
-				$routeQuery = $this->db->get_where('route', array('id' => $result->routeId));
-				$routeInfo = $routeQuery->row();
-				$result->routeId = $routeInfo;
-				unset($result->routeId);
+			$data = array();
 
 
 
+			if (isset($_GET['populate']) && $_GET['populate'] == true) {
+				foreach ($results as $result) {
+					$teamQuery = $this->db->get_where('rep', array('id' => $result->teamRepId));
+					$teamInfo = $teamQuery->row();
+					$result->teamRepId = $teamInfo;
 
-				$memberQuery = $this->db->get_where('rep', array('repTeam' => $result->id));
-				$memberInfo = $memberQuery->result();
-				$result->memberInfo = $memberInfo;
+					$routeQuery = $this->db->get_where('route', array('id' => $result->routeId));
+					$routeInfo = $routeQuery->row();
+					$result->routeId = $routeInfo;
+					unset($result->routeId);
 
+					$memberQuery = $this->db->get_where('rep', array('repTeam' => $result->id));
+					$memberInfo = $memberQuery->result();
+					$result->memberInfo = $memberInfo;
 
+					$teamQuery = $this->db->get_where('city', array('id' => $result->cityId));
+					$teamInfo = $teamQuery->row();
+					$result->cityId = $teamInfo;
+					$data['data'][] = $result;
+				}
 
-
-				$teamQuery = $this->db->get_where('city', array('id' => $result->cityId));
-				$teamInfo = $teamQuery->row();
-				$result->cityId = $teamInfo;
-
-
-
-
-
-
-				$data['data'][] = $result;
+				$data['count'] = $num_results;
+				return $data;
 			}
 
-			$data['count'] = $count;
-
+			$data['data'] = $data['data'] ?? $results;
+			$data['count'] = $num_results;
 			return $data;
-		endif;
-
-
-
-		$data['data'] = $data['data'] ?? $results;
-		$data['count'] = $count;
-
-
-		return $data;
+		} else {
+			return FALSE;
+		}
 	}
 
 	public function get_teams($id)
@@ -134,7 +163,7 @@ class Teams_model extends CI_Model
 		$this->form_validation->set_rules('teamRepId', 'Teams Rep Id', 'max_length[100]');
 		$this->form_validation->set_rules('teamTarget', 'Teams Target ', 'required');
 		$this->form_validation->set_rules('cityId', 'City Id', 'required|max_length[100]');
-		$this->form_validation->set_rules('status', 'Stauts', 'required|max_length[100]');
+		$this->form_validation->set_rules('status', 'Status', 'required|max_length[100]');
 		//$this->form_validation->set_rules('routeId', 'Route Id ', 'required|max_length[100]');
 
 

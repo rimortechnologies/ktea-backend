@@ -30,6 +30,7 @@ class Orders extends REST_Controller
 	public function index_post()
 	{
 		$request = json_decode(file_get_contents('php://input'), true);
+		// print_r($request);
 		if (!is_array($request)) {
 			$this->response([
 				'status' => REST_Controller::HTTP_BAD_REQUEST,
@@ -52,20 +53,21 @@ class Orders extends REST_Controller
 	public function order_cancel_post()
 	{
 		$request = json_decode(file_get_contents('php://input'), true);
+		// print_r($request);
 		if (!is_array($request)) {
 			$this->response([
 				'status' => REST_Controller::HTTP_BAD_REQUEST,
 				'error' => 'Invalid Request Not a valid json'
 			], REST_Controller::HTTP_BAD_REQUEST);
 		} else {
-			$result = $this->Orders_model->update_Order_status($request, 4);
+			$result = $this->Orders_model->cancel_order($request);
 			if ($result == false) {
 				$errors = $this->form_validation->error_array();
 				$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => $errors], REST_Controller::HTTP_BAD_REQUEST);
 			} elseif ($result) {
-				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Updated successfully.'], REST_Controller::HTTP_OK);
+				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Cannot cancel after completed'], REST_Controller::HTTP_OK);
 			} else {
-				$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Failed to Updated Order.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+				$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Cannot cancel after completed'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 			}
 		}
 	}
@@ -93,23 +95,24 @@ class Orders extends REST_Controller
 	// }
 
 
-	public function accept_order_post($orderId)
+	public function accept_order_put()
 	{
 		$request = json_decode(file_get_contents('php://input'), true);
+		// print_r($request);
 		if (!is_array($request)) {
 			$this->response([
 				'status' => REST_Controller::HTTP_BAD_REQUEST,
 				'error' => 'Invalid Request Not a valid json'
 			], REST_Controller::HTTP_BAD_REQUEST);
 		} else {
-			$result = $this->Orders_model->accept_order($orderId, $request);
+			$result = $this->Orders_model->accept_order($request);
 			if ($result == false) {
 				$errors = $this->form_validation->error_array();
 				$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => $errors], REST_Controller::HTTP_BAD_REQUEST);
 			} elseif ($result) {
-				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Updated successfully.'], REST_Controller::HTTP_OK);
+				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Approved'], REST_Controller::HTTP_OK);
 			} else {
-				$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Failed to Updated Order.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+				$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Failed to Approve Order.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 			}
 		}
 	}
@@ -117,6 +120,32 @@ class Orders extends REST_Controller
 	public function my_analytics_get($type = '', $repId = '')
 	{
 		$result = $this->Orders_model->get_order_analytics($type, $repId);
+		if ($result == false) {
+			$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => 'Invalid Request data'], REST_Controller::HTTP_BAD_REQUEST);
+		} else {
+			$this->response([
+				'status' => REST_Controller::HTTP_OK,
+				'data' => $result
+			], REST_Controller::HTTP_OK);
+		}
+	}
+
+	public function admin_analytics_get()
+	{
+		$result = $this->Orders_model->get_admin_analytics();
+		if ($result == false) {
+			$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => 'Invalid Request data'], REST_Controller::HTTP_BAD_REQUEST);
+		} else {
+			$this->response([
+				'status' => REST_Controller::HTTP_OK,
+				'data' => $result
+			], REST_Controller::HTTP_OK);
+		}
+	}
+
+	public function admin_count_get()
+	{
+		$result = $this->Orders_model->get_total_counts();
 		if ($result == false) {
 			$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => 'Invalid Request data'], REST_Controller::HTTP_BAD_REQUEST);
 		} else {

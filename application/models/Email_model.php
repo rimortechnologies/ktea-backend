@@ -13,14 +13,14 @@
         public function send_email($data)
         {
             $from_name         = 'Kajah Tea';
-            $from_mail         = 'testing@infantsurya.in';
+            $from_mail         = 'test@faheemas.sg';
             $this->load->library('email');
             $config = array(
                 'protocol'  => 'smtp',
-                'smtp_host' => 'mail.infantsurya.in',
+                'smtp_host' => 'mail.faheemas.sg',
                 'smtp_port' => 587,
-                'smtp_user' => 'testing@infantsurya.in',
-                'smtp_pass' => 'suryatest@123',
+                'smtp_user' => 'test@faheemas.sg',
+                'smtp_pass' => 'MyTesting@123',
                 'mailtype'  => 'html',
                 'charset'   => 'utf-8',
                 'wordwrap' => TRUE

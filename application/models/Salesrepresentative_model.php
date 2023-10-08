@@ -5,42 +5,90 @@ class Salesrepresentative_model extends CI_Model
 	public function get_all_salesrepresentatives()
 	{
 
-		$this->db->select('*');
-		$this->db->from('rep a');
-		if (isset($_GET['repCity']))  $this->db->where('repCity', $_GET['repCity']);
+		$conditionsForCount = array();
+		$conditions = array();
+		$search = '';
+		$num_results = 0;
 
 
 		if (isset($_GET['search']) and $_GET['search'] != null) {
+
 			$search  = urldecode($_GET['search']);
-			$filters = [
-				'firstName' => $search,
-				'lastName' => $search,
-				'repEmail' => $search,
-				'repContactNumber' => $search,
-				'repArea' => $search,
-			];
 		}
 
-		if (isset($filters) && !empty($filters)) {
-			$this->db->group_Start();
-			$this->db->or_like($filters);
-			$this->db->group_End();
+		if (isset($_GET['cityId'])) {
+			$conditions['repCity'] = $_GET['cityId'];
 		}
 
+		if (isset($_GET['status'])) {
+			$conditions['repStatus'] = $_GET['status'];
+		}
+		if (isset($_GET['routeId'])) {
+			$conditions['repRoute'] = $_GET['routeId'];
+		}
+
+		$countQueryBuilder = clone $this->db;
+
+		$countQueryBuilder->select('COUNT(*) as count')
+			->join('city', 'city.id = a.repCity', 'left')
+			// ->join('route', 'route.id = a.repRoute', 'left')
+			->group_start()
+			->or_like('a.firstName', $search)
+			->or_like('a.lastName', $search)
+			->or_like('a.repContactNumber', $search)
+			->or_like('a.repEmail', $search)
+			->group_end();
+
+		$conditionsForCount = $conditions;
+		$countResult = $countQueryBuilder->from('rep a')->where($conditionsForCount)->get()->row();
+		$num_results = $countResult->count;
+
+		$this->db->group_start()
+			->select('a.*, city.cityName')
+			->join('city', 'city.id = a.repCity', 'left')
+			// ->join('route', 'route.id = a.repRoute', 'left')
+			->or_like('a.firstName', $search)
+			->or_like('a.lastName', $search)
+			->or_like('a.repContactNumber', $search)
+			->or_like('a.repEmail', $search)
+			->group_end();
+
+		$sortField = 'a.created_date';
+		$orderBy = 'DESC';
+		if (isset($_GET['orderBy'])) {
+			if ($_GET['orderBy'] === 'city' || $_GET['orderBy'] === '-city') {
+				$sortField = 'city.cityName';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'order' || $_GET['orderBy'] === '-order') {
+				$sortField = 'a.repOrders';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'points' || $_GET['orderBy'] === '-points') {
+				$sortField = 'a.repPoints';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'target' || $_GET['orderBy'] === '-target') {
+				$sortField = 'a.repTarget';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'status' || $_GET['orderBy'] === '-status') {
+				$sortField = 'a.repStatus';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'name' || $_GET['orderBy'] === '-name') {
+				$sortField = 'a.firstName';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'phone' || $_GET['orderBy'] === '-phone') {
+				$sortField = 'a.repContactNumber';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			}
+		}
 
 		$limit = (isset($_GET['limit']) && is_numeric($_GET['limit']) && !empty(trim($_GET['limit']))) ? $_GET['limit'] : 10;
 		$offset = (isset($_GET['offset']) && is_numeric($_GET['offset']) && !empty(trim($_GET['offset']))) ? $_GET['offset'] : 0;
 
-		if ($limit != null || $offset != null) {
-			$this->db->limit($limit, $offset);
-		}
-
-
-
-		$query = $this->db->get();
-
-
-
+		$query = $this->db
+			->from('rep a')
+			->where($conditions)
+			->limit($limit, $offset)
+			->order_by($sortField, $orderBy)
+			->get();
 
 		if ($query->num_rows() != 0) {
 			$results = $query->result();
@@ -62,11 +110,11 @@ class Salesrepresentative_model extends CI_Model
 					unset($result->password);
 					$data['data'][] = $result;
 				}
-				$data['count'] = $count;
+				$data['count'] = $num_results;
 				return $data;
 			endif;
 			$data['data'] = $results;
-			$data['count'] = $count;
+			$data['count'] = $num_results;
 			return $data;
 		} else {
 			return FALSE;
@@ -134,6 +182,7 @@ class Salesrepresentative_model extends CI_Model
 		$insert['createdBy'] = getCreatedBy();
 		$insert['password'] = $this->bcrypt->hash_password(getPassword());
 		$this->db->insert('rep', $insert);
+		$this->Email_model->send_email_reset_password($insert['id'], 'rep');
 		return $this->get_salesrepresentative($insert['id']);
 	}
 
@@ -166,6 +215,7 @@ class Salesrepresentative_model extends CI_Model
 		$insert['repTeam'] = $data['repTeam'];
 		$this->db->where('id', $salesrepresentativeId);
 		$this->db->update('rep', $update);
+		// $this->Email_model->send_email_reset_password($salesrepresentativeId, 'rep');
 		return $this->get_salesrepresentative($salesrepresentativeId);
 	}
 

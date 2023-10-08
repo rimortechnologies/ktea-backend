@@ -4,47 +4,89 @@ class Retailer_model extends CI_Model
 {
 	public function get_all_retailers()
 	{
-		$this->db->select('a.*');
-		$this->db->from('retailer a');
-		if (isset($_GET['cityId']))
-			$this->db->where('retailerCity', $_GET['cityId']);
-		if (isset($_GET['routeId']))
-			$this->db->where('retailerRoute', $_GET['routeId']);
-		if (isset($_GET['status']))
-			$this->db->where('retailerActive', $_GET['status']);
-
-
+		$conditionsForCount = array();
+		$conditions = array();
+		$search = '';
+		$num_results = 0;
 
 		if (isset($_GET['search']) and $_GET['search'] != null) {
-			$search  = urldecode($_GET['search']);
-			$filters = [
-				'retailerShopName' => $search,
-				'retailerName' => $search,
-				'retailerContactNumber' => $search,
-				'retailerEmail' => $search,
 
-			];
+			$search  = urldecode($_GET['search']);
 		}
 
-		if (isset($filters) && !empty($filters)) {
-			$this->db->group_Start();
-			$this->db->or_like($filters);
-			$this->db->group_End();
+		if (isset($_GET['cityId'])) {
+			$conditions['retailerCity'] = $_GET['cityId'];
+		}
+
+		if (isset($_GET['status'])) {
+			$conditions['retailerActive'] = $_GET['status'];
+		}
+
+		if (isset($_GET['routeId'])) {
+			$conditions['retailerRoute'] = $_GET['routeId'];
+		}
+
+		$countQueryBuilder = clone $this->db;
+
+		$countQueryBuilder->select('COUNT(*) as count')
+			->join('city', 'city.id = a.retailerCity', 'left')
+			->join('route', 'route.id = a.retailerRoute', 'left')
+			->group_start()
+			->or_like('a.retailerShopName', $search)
+			->or_like('a.retailerName', $search)
+			->or_like('a.retailerContactNumber', $search)
+			->or_like('a.retailerArea', $search)
+			->or_like('a.retailerEmail', $search)
+			->group_end();
+
+		$conditionsForCount = $conditions;
+		$countResult = $countQueryBuilder->from('retailer a')->where($conditionsForCount)->get()->row();
+		$num_results = $countResult->count;
+
+		$this->db->group_start()
+			->select('a.*, city.cityName,route.routeName')
+			->join('city', 'city.id = a.retailerCity', 'left')
+			->join('route', 'route.id = a.retailerRoute', 'left')
+			->or_like('a.retailerShopName', $search)
+			->or_like('a.retailerName', $search)
+			->or_like('a.retailerContactNumber', $search)
+			->or_like('a.retailerArea', $search)
+			->or_like('a.retailerEmail', $search)
+			->group_end();
+
+
+		$sortField = 'a.created_date';
+		$orderBy = 'DESC';
+		if (isset($_GET['orderBy'])) {
+			if ($_GET['orderBy'] === 'name' || $_GET['orderBy'] === '-name') {
+				$sortField = 'a.retailerShopName';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'city' || $_GET['orderBy'] === '-city') {
+				$sortField = 'city.cityName';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'status' || $_GET['orderBy'] === '-status') {
+				$sortField = 'a.retailerActive';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			} else if ($_GET['orderBy'] === 'phone' || $_GET['orderBy'] === '-phone') {
+				$sortField = 'a.retailerContactNumber';
+				$orderBy = (strpos($_GET['orderBy'], '-') === 0) ? 'DESC' : 'ASC';
+			}
 		}
 
 
 		$limit = (isset($_GET['limit']) && is_numeric($_GET['limit']) && !empty(trim($_GET['limit']))) ? $_GET['limit'] : 10;
 		$offset = (isset($_GET['offset']) && is_numeric($_GET['offset']) && !empty(trim($_GET['offset']))) ? $_GET['offset'] : 0;
 
-		if ($limit != null || $offset != null) {
-			$this->db->limit($limit, $offset);
-		}
+		$query = $this->db
+			->from('retailer a')
+			->where($conditions)
+			->limit($limit, $offset)
+			->order_by($sortField, $orderBy)
+			->get();
 
 
-		$query = $this->db->get();
 		if ($query->num_rows() != 0) {
 			$results['data'] = $query->result();
-			$results['count'] = $query->num_rows();
 			if (isset($_GET['populate']) && $_GET['populate'] == true) :
 				foreach ($results['data'] as $result) {
 					$cityQuery = $this->db->get_where('city', array('id' => $result->retailerCity));
@@ -56,12 +98,8 @@ class Retailer_model extends CI_Model
 					unset($result->password);
 					$data['data'][] = $result;
 				}
-
-
-
+				$data['count'] = $num_results;
 				return $data;
-
-
 			endif;
 
 

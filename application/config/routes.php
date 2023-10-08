@@ -123,11 +123,13 @@ $route['v1/teams/(:any)']                                       = 'teams/$1';
 
 //orders
 $route['v1/orders']                                                  = 'orders';
+$route['v1/order-approve']                                                  = 'orders/accept_order';
+$route['v1/orders/cancel']                                                  = 'orders/order_cancel';
 $route['v1/orders/(:any)']                                            = 'orders/$1';
-$route['v1/order-approve']                                                  = 'orders/order_approve';
-$route['v1/order-cancel']                                                  = 'orders/order_cancel';
 
 //analyitcs
+$route['v1/analytics/admin']                                             = 'orders/admin_analytics';
+$route['v1/analytics/count']                                             = 'orders/admin_count';
 $route['v1/analytics/orders/(:any)/(:any)']                                             = 'orders/my_analytics/$1/$2';
 
 
