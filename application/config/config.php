@@ -25,7 +25,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 */
 // $config['base_url'] = 'http://localhost:90/rfg/';
 // $config['base_url'] = 'https://kajahapi.infantsurya.in/';
-$config['base_url'] = 'http://kajah.localhost/';
+// $config['base_url'] = 'http://kajah.localhost/';
+$config['base_url'] = 'https://api.kajahtea.com/';
 
 
 /*
@@ -141,7 +142,7 @@ $config['subclass_prefix'] = 'MY_';
 | Note: This will NOT disable or override the CodeIgniter-specific
 |	autoloading (application/config/autoload.php)
 */
-$config['composer_autoload'] = FALSE;
+$config['composer_autoload'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -231,7 +232,7 @@ $config['allow_get_array'] = TRUE;
 | your log files will fill up very fast.
 |
 */
-$config['log_threshold'] = 0;
+$config['log_threshold'] = 2;
 
 /*
 |--------------------------------------------------------------------------

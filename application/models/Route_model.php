@@ -2,52 +2,142 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 class Route_model extends CI_Model
 {
+	// public function get_all_routes()
+	// {
+	// 	$this->db->select('a.*');
+	// 	$this->db->from('route a');
+
+
+	// 	if (isset($_GET['routeCity']))  $this->db->where('routeCity', $_GET['routeCity']);
+
+
+	// 	if (isset($_GET['search']) and $_GET['search'] != null) {
+	// 		$search  = urldecode($_GET['search']);
+	// 		$filters = [
+	// 			'routeName' => $search,
+
+	// 		];
+	// 	}
+
+	// 	if (isset($filters) && !empty($filters)) {
+	// 		$this->db->group_Start();
+	// 		$this->db->or_like($filters);
+	// 		$this->db->group_End();
+	// 	}
+
+
+	// 	$limit = (isset($_GET['limit']) && is_numeric($_GET['limit']) && !empty(trim($_GET['limit']))) ? $_GET['limit'] : null;
+	// 	$offset = (isset($_GET['offset']) && is_numeric($_GET['offset']) && !empty(trim($_GET['offset']))) ? $_GET['offset'] : 0;
+
+	// 	if ($limit != null || $offset != null) {
+	// 		$this->db->limit($limit, $offset);
+	// 	}
+
+
+
+
+	// 	if (isset($_GET['routeCity'])) {
+	// 		$this->db->where('routeCity', $_GET['routeCity']);
+	// 	}
+
+	// 	$query = $this->db->get();
+
+
+	// 	if ($query->num_rows() != 0) {
+	// 		$results = $query->result();
+	// 		$count = $query->num_rows();
+	// 		$data = array();
+
+	// 		if (isset($_GET['populate']) && $_GET['populate'] == true) {
+	// 			foreach ($results as $result) {
+	// 				$cityQuery = $this->db->get_where('city', array('id' => $result->routeCity));
+	// 				$cityInfo = $cityQuery->row();
+	// 				$result->routeCity = $cityInfo;
+	// 				$stopQuery = $this->db->get_where('stop', array('stopRouteId' => $result->id));
+	// 				$stopInfo = $stopQuery->result();
+	// 				$result->stops = $stopInfo;
+	// 				$data['data'][] = $result;
+	// 			}
+	// 			$data['count'] = $count;
+	// 			return $data;
+	// 		}
+
+	// 		$data['data'] = $results;
+	// 		$data['count'] = $count;
+	// 		return $data;
+	// 	} else {
+	// 		return FALSE;
+	// 	}
+	// }
+
 	public function get_all_routes()
 	{
-
-
-		$this->db->select('a.*');
+		$this->db->select('a.*,city.cityName');
+		$this->db->join('city', 'city.id = a.routeCity', 'left');
 		$this->db->from('route a');
-
 
 		if (isset($_GET['routeCity']))  $this->db->where('routeCity', $_GET['routeCity']);
 
-
-		if (isset($_GET['search']) and $_GET['search'] != null) {
-			$search  = urldecode($_GET['search']);
+		if (isset($_GET['search']) && $_GET['search'] != null) {
+			$search = urldecode($_GET['search']);
 			$filters = [
 				'routeName' => $search,
-
 			];
 		}
 
 		if (isset($filters) && !empty($filters)) {
-			$this->db->group_Start();
+			$this->db->group_start();
 			$this->db->or_like($filters);
-			$this->db->group_End();
+			$this->db->group_end();
+		}
+
+		$this->db->where('a.deleted', false);
+
+		// Clone the query for counting
+		$countQuery = clone $this->db;
+
+		// Get count before applying limit and offset
+		$count = $countQuery->count_all_results();
+
+		$sortField = 'a.created_date';
+		$orderBy = 'DESC';
+
+		// Sorting logic
+		if (isset($_GET['orderBy'])) {
+			$orderField = $_GET['orderBy'];
+			$orderPrefix = ($orderField[0] === '-') ? 'DESC' : 'ASC';
+
+			switch (ltrim($orderField, '-')) {
+				case 'name':
+					$sortField = 'a.routeName';
+					break;
+				case 'city':
+					$sortField = 'city.cityName';
+					break;
+					// Add more cases as needed
+			}
+
+			$orderBy = $orderPrefix;
 		}
 
 
-		$limit = (isset($_GET['limit']) && is_numeric($_GET['limit']) && !empty(trim($_GET['limit']))) ? $_GET['limit'] : 10;
+		$limit = (isset($_GET['limit']) && is_numeric($_GET['limit']) && !empty(trim($_GET['limit']))) ? $_GET['limit'] : null;
 		$offset = (isset($_GET['offset']) && is_numeric($_GET['offset']) && !empty(trim($_GET['offset']))) ? $_GET['offset'] : 0;
 
 		if ($limit != null || $offset != null) {
 			$this->db->limit($limit, $offset);
 		}
 
-
-
-
 		if (isset($_GET['routeCity'])) {
 			$this->db->where('routeCity', $_GET['routeCity']);
 		}
 
-		$query = $this->db->get();
+		$this->db->order_by($sortField, $orderBy);
 
+		$query = $this->db->get();
 
 		if ($query->num_rows() != 0) {
 			$results = $query->result();
-			$count = $query->num_rows();
 			$data = array();
 
 			if (isset($_GET['populate']) && $_GET['populate'] == true) {
@@ -73,6 +163,7 @@ class Route_model extends CI_Model
 	}
 
 
+
 	public function get_route($routeId)
 	{
 
@@ -88,7 +179,7 @@ class Route_model extends CI_Model
 				$cityQuery = $this->db->get_where('city', array('id' => $result->routeCity));
 				$cityInfo = $cityQuery->row();
 				$result->routeCity = $cityInfo;
-				$stopQuery = $this->db->get_where('stop', array('stopRouteId' => $result->id));
+				$stopQuery = $this->db->get_where('stop', array('stopRouteId' => $routeId));
 				$stopInfo = $stopQuery->result();
 				$result->stops = $stopInfo;
 				$data['data'] = $result;
@@ -118,6 +209,7 @@ class Route_model extends CI_Model
 		$insert['createdBy'] = getCreatedBy();
 		$insert['routeName'] = $data['routeName'];
 		$insert['routeCity'] = $data['routeCity'];
+		$insert['routeDescription'] = $data['routeDescription'];
 		$this->db->insert('route', $insert);
 
 		// Create stop records associated with the route
@@ -164,6 +256,7 @@ class Route_model extends CI_Model
 		}
 		$update['routeName'] = $data['routeName'];
 		$update['routeCity'] = $data['routeCity'];
+		$update['routeDescription'] = $data['routeDescription'];
 		$this->db->where('id', $routeId);
 		$this->db->update('route', $update);
 
@@ -227,12 +320,11 @@ class Route_model extends CI_Model
 
 		$route  = $this->get_route($routeId);
 		if ($route) {
-			if ($this->db->get_where('stop', array('stopRouteId' => $routeId))->row()) return FALSE;
-			if ($this->db->get_where('retailer', array('retailerRoute' => $routeId))->row()) return FALSE;
-			if ($this->db->get_where('distributor', array('distributorRoute' => $routeId))->row()) return FALSE;
+			$data = array('deleted' => true);
 
 			$this->db->where('id', $routeId);
-			$this->db->delete('route');
+
+			$this->db->update('route', $data);
 			if ($this->db->affected_rows() > 0) return true;
 			else return FALSE;
 		} else return FALSE;

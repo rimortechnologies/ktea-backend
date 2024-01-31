@@ -69,11 +69,10 @@ class Auth_model extends CI_Model
 		}
 		// echo $user;
 		if (!empty($user)) {
-			if (!$this->bcrypt->check_password($data['password'], $user->password)) return false;
-			if ($user->repStatus == 3 || $user->repStatus == 2) return false;
+			if (!$this->bcrypt->check_password($data['password'], $user->password)) throw new \Exception("Invalid Password");
+			if ($user->repStatus == 3 || $user->repStatus == 2) throw new \Exception("User Blocked");
 			return $user;
-		} else
-			return false;
+		} else throw new \Exception("User info does not exist");
 	}
 	// public function login_salesrepresentative($data)
 	// {

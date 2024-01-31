@@ -15,6 +15,37 @@ class Admin_model extends CI_Model
 		return $data;
 	}
 
+	public function get_cities_with_routes()
+	{
+		$this->db->select('city.id as cityId, city.cityName as cityName');
+		$this->db->from('city');
+		$this->db->group_by('city.id');
+		$query = $this->db->get();
+
+		if (!$query) {
+			die("Database error: " . $this->db->error()['message']);
+		}
+
+		$cities = $query->result();
+
+		foreach ($cities as &$city) {
+			$this->db->select('id as routeId, routeName');
+			$this->db->from('route');
+			$this->db->where('routeCity', $city->cityId);
+			$routesQuery = $this->db->get();
+
+			if (!$routesQuery) {
+				die("Database error: " . $this->db->error()['message']);
+			}
+
+			$city->routes = $routesQuery->result();
+		}
+
+		return $cities;
+	}
+
+
+
 	public function get_all_units()
 	{
 		$query = $this->db->get('units');
@@ -66,6 +97,7 @@ class Admin_model extends CI_Model
 				return false;
 			}
 		}
+
 		if (isset($_GET['year'])) {
 			$currentYear = $_GET['year'];
 		}
@@ -79,12 +111,26 @@ class Admin_model extends CI_Model
 		foreach ($results as $result) {
 			$result->month = $currentMonth;
 			$result->year = $currentYear;
+
+			// Fetch the score from the leaderboardteam table
 			$result->score = $this->db->select('score')->where(['teamId' => $result->teamId, 'month' => $currentMonth, 'year' => $currentYear])->get('leaderboardteam')->row('score');
 
 			// Fetch the teamTarget value from the teams table
 			$teamQuery = $this->db->get_where('teams', array('id' => $result->teamId));
 			$teamInfo = $teamQuery->row();
 			$result->teamTarget = $teamInfo->teamTarget;
+
+			// Fetch all cities associated with the team from the association table
+			$cityAssociations = $this->db->select('cityId')->from('association')->where(['role' => 'team', 'bearerId' => $result->teamId])->get()->result();
+
+			$cities = [];
+			foreach ($cityAssociations as $cityAssociation) {
+				$cityQuery = $this->db->get_where('city', array('id' => $cityAssociation->cityId));
+				$cityInfo = $cityQuery->row();
+				$cities[] = $cityInfo;
+			}
+
+			$teamInfo->cities = $cities;
 
 			// Calculate the percentage
 			$percentage = ($result->score / $result->teamTarget) * 100;
@@ -93,10 +139,6 @@ class Admin_model extends CI_Model
 			if (isset($_GET['populate']) && $_GET['populate'] == true) {
 				// Add any additional fields you want to populate here.
 				// For example:
-				$cityQuery = $this->db->get_where('city', array('id' => $teamInfo->cityId));
-				$cityInfo = $cityQuery->row();
-				$teamInfo->cityId = $cityInfo;
-
 				$result->teamId = $teamInfo;
 			}
 
@@ -111,67 +153,7 @@ class Admin_model extends CI_Model
 		$data['count'] = $count;
 		return $data;
 	}
-	// public function get_all_leaderboardteam()
-	// {
-	// 	$currentMonth = date('M');
-	// 	$currentYear = date('Y');
 
-	// 	if (isset($_GET['month_and_year'])) {
-	// 		$arr = explode("-", $_GET['month_and_year']);
-	// 		if (count($arr) == 2 && is_numeric($arr[0]) && $arr[0] <= 12 && is_numeric($arr[1]) && $arr[1] >= 2000) {
-	// 			$currentMonth = date('M', mktime(0, 0, 0, $arr[0], 1));
-	// 			$currentYear = $arr[1];
-	// 		} else {
-	// 			return false;
-	// 		}
-	// 	}
-	// 	if (isset($_GET['year']))  $currentYear = $_GET['year'];
-
-
-
-	// 	$this->db->select('id AS teamId');
-	// 	$query = $this->db->get('teams');
-	// 	$results = $query->result();
-
-	// 	$count = $query->num_rows();
-
-
-
-	// 	foreach ($results as $result) {
-
-
-	// 		$result->month = $currentMonth;
-	// 		$result->year 	= $currentYear;
-	// 		$result->score 	=	$this->db->select('score')->where(['teamId' => $result->teamId, 'month' => $currentMonth, 'year' => $currentYear])->get('leaderboardteam')->row('score');
-
-
-
-	// 		if (isset($_GET['populate']) && $_GET['populate'] == true) :
-	// 			$teamQuery = $this->db->get_where('teams', array('id' => $result->teamId));
-	// 			$teamInfo = $teamQuery->row();
-
-	// 			$teamCityQuery = $this->db->get_where('city', array('id' => $teamInfo->cityId));
-	// 			$teamCity = $teamCityQuery->row();
-	// 			$teamInfo->cityId = $teamCity;
-
-	// 			$teamRepQuery = $this->db->get_where('rep', array('id' => $teamInfo->teamRepId));
-	// 			$teamRep = $teamRepQuery->row();
-	// 			$teamInfo->teamRepId = $teamRep;
-
-	// 			$result->teamId = $teamInfo;
-	// 		endif;
-
-
-
-	// 		$data['data'][] = $result;
-	// 	}
-	// 	$data['count'] = $count;
-	// 	return $data;
-
-	// 	$data['data'] = $data['data'] ?? $results;
-	// 	$data['count'] = $count;
-	// 	return $data;
-	// }
 	public function get_all_leaderboardrep()
 	{
 		$currentMonth = date('M');
@@ -203,6 +185,68 @@ class Admin_model extends CI_Model
 			$percentage = min(100, intval(($result->score / $repTarget) * 100));
 			$result->percentage = $percentage;
 
+			$associationData = $this->db->select('cityId, routeId')->where(['role' => 'rep', 'bearerId' => $result->repId])->get('association')->result();
+
+			$result->cities = [];
+
+			// foreach ($associationData as $assoc) {
+			// 	// Fetch city information
+			// 	$cityInfo = $this->db->get_where('city', ['id' => $assoc->cityId])->row();
+
+			// 	// Fetch route information
+			// 	$routeInfo = $this->db->get_where('route', ['id' => $assoc->routeId])->row();
+
+			// 	// Append data to the cities array
+			// 	$result->cities[] = [
+			// 		'cityInfo' => $cityInfo,
+			// 		'routeIds' => [
+			// 			'routeId' => $routeInfo->id,
+			// 			'routeName' => $routeInfo->routeName,
+			// 		],
+			// 	];
+			// }
+
+			$result->cities = [];
+
+			foreach ($associationData as $assoc) {
+				// Fetch city information
+				$cityInfo = $this->db->get_where('city', ['id' => $assoc->cityId])->row();
+				$routeInfo = $this->db->get_where('route', ['id' => $assoc->routeId])->row();
+				// Check if the city already exists in the result
+				$cityIndex = array_search($cityInfo, array_column($result->cities, 'cityInfo'));
+
+				if ($cityIndex === false) {
+					// If the city does not exist, add it to the result
+					$result->cities[] = [
+						'cityInfo' => $cityInfo,
+						'routeIds' => [  // Initialize routeIds as an array
+							[
+								'routeId' => $routeInfo->id,
+								'routeName' => $routeInfo->routeName,
+							],
+						],
+					];
+				} else {
+					// If the city already exists, check if routeIds field exists
+					if (!isset($result->cities[$cityIndex]['routeIds']) || !is_array($result->cities[$cityIndex]['routeIds'])) {
+						$result->cities[$cityIndex]['routeIds'] = [];  // Initialize routeIds as an array
+					}
+
+					// Add the route to the existing routeIds array
+					$result->cities[$cityIndex]['routeIds'][] = [
+						'routeId' => $routeInfo->id,
+						'routeName' => $routeInfo->routeName,
+					];
+				}
+			}
+
+			// if (isset($_GET['populate']) && $_GET['populate'] == true) {
+			// 	// ... (existing code)
+			// 	$data['data'][] = $result; // Add the current result to the data array
+			// }
+
+
+
 			if (isset($_GET['populate']) && $_GET['populate'] == true) {
 				$repQuery = $this->db->get_where('rep', array('id' => $result->repId));
 				$repInfo = $repQuery->row();
@@ -214,9 +258,10 @@ class Admin_model extends CI_Model
 				$repTeam = $repTeamQuery->row();
 				$repInfo->repTeam = $repTeam;
 				$result->repId = $repInfo;
-			}
 
-			$data['data'][] = $result;
+
+				$data['data'][] = $result;
+			}
 		}
 
 		// Sort the results in descending order based on percentage
@@ -322,14 +367,14 @@ class Admin_model extends CI_Model
 		$this->form_validation->set_rules('email', "Email Address", 'required|xss_clean|max_length[100]');
 
 		if ($this->form_validation->run() == false) {
-			return false;
+			throw new \Exception("E-mail/User Invalid.");
 		} else {
 			$user = $this->get_user_by_emailandtype($data['email'], $data['type']);
 			if ($user) :
 				$this->Email_model->send_email_reset_password($user->id, $data['type']);
 				return ("Success");
 			else :
-				return ("E-mail does not exsits.");
+				throw new \Exception("E-mail does not exsits.");
 			endif;
 		}
 	}
@@ -339,43 +384,43 @@ class Admin_model extends CI_Model
 		$this->load->library('form_validation');
 		$this->form_validation->set_data($data);
 
+		$this->form_validation->set_rules('token', 'Token', 'required|max_length[100]');
 		$this->form_validation->set_rules('password', 'Password', 'required|max_length[100]');
 		$this->form_validation->set_rules('confirm_password', "Confirm Password", 'required|xss_clean|matches[password]');
-		if ($this->form_validation->run() == FALSE)  return FALSE;
-		if (isset($_GET['token'])) {
+		if ($this->form_validation->run() == FALSE)  new \Exception('Invalid Password/Confirm Password');
+		if (isset($data['token'])) {
 			$data['password'] = $this->bcrypt->hash_password($data['password']);
 			$update = [
 				'token' => null,
 				'password' => $data['password']
 			];
-			$this->db->where('token', $_GET['token']);
+			$this->db->where('token', $data['token']);
 			$this->db->update('distributor', $update);
 			if ($this->db->affected_rows() > 0) return true;
-			else return FALSE;
-		} else
-			return false;
+			else throw new \Exception('Token Expired');
+		} else throw new \Exception('Invalid Token');
 	}
 	public function reset_password_rep($data)
 	{
 		$this->load->library('bcrypt');
 		$this->load->library('form_validation');
 		$this->form_validation->set_data($data);
-
+		// print_r($data);
+		$this->form_validation->set_rules('token', 'Token', 'required|max_length[100]');
 		$this->form_validation->set_rules('password', 'Password', 'required|max_length[100]');
 		$this->form_validation->set_rules('confirm_password', "Confirm Password", 'required|xss_clean|matches[password]');
-		if ($this->form_validation->run() == FALSE)  return FALSE;
-		if (isset($_GET['token'])) {
+		if ($this->form_validation->run() == FALSE)  new \Exception('Invalid Password/Confirm Password');
+		if (isset($data['token'])) {
 			$data['password'] = $this->bcrypt->hash_password($data['password']);
 			$update = [
 				'token' => null,
 				'password' => $data['password']
 			];
-			$this->db->where('token', $_GET['token']);
+			$this->db->where('token', $data['token']);
 			$this->db->update('rep', $update);
 			if ($this->db->affected_rows() > 0) return true;
-			else return FALSE;
-		} else
-			return false;
+			else throw new \Exception('Token Expired');
+		} else throw new \Exception('Invalid Token');
 	}
 	public function reset_password_admin($data)
 	{
@@ -383,20 +428,20 @@ class Admin_model extends CI_Model
 		$this->load->library('form_validation');
 		$this->form_validation->set_data($data);
 
+		$this->form_validation->set_rules('token', 'Token', 'required|max_length[100]');
 		$this->form_validation->set_rules('password', 'Password', 'required|max_length[100]');
 		$this->form_validation->set_rules('confirm_password', "Confirm Password", 'required|xss_clean|matches[password]');
-		if ($this->form_validation->run() == FALSE)  return FALSE;
-		if (isset($_GET['token'])) {
+		if ($this->form_validation->run() == FALSE)  new \Exception('Invalid Password/Confirm Password');
+		if (isset($data['token'])) {
 			$data['password'] = $this->bcrypt->hash_password($data['password']);
 			$update = [
 				'token' => null,
 				'password' => $data['password']
 			];
-			$this->db->where('token', $_GET['token']);
+			$this->db->where('token', $data['token']);
 			$this->db->update('admin', $update);
 			if ($this->db->affected_rows() > 0) return true;
-			else return FALSE;
-		} else
-			return false;
+			else throw new \Exception('Token Expired');
+		} else throw new \Exception('Invalid Token');
 	}
 }

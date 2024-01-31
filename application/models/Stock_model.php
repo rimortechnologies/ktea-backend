@@ -19,6 +19,7 @@ class Stock_model extends CI_Model
 				$info['productWeight'] = $product->productWeight;
 				$stocks = $this->db->get_where('stock', array('stockDistributorId' => $distributorId, 'stockProductId' => $product->id))->row();
 				$info['stockCount'] = ($stocks ? $stocks->stockQty : 0);
+				$info['returnQty'] = ($stocks ? $stocks->returnQty : 0);
 				$productReturn[] = $info;
 			}
 			$data['data'] = $productReturn;
@@ -217,6 +218,44 @@ class Stock_model extends CI_Model
 		$this->db->update('stock', $update);
 		return $this->get_stock($stockId);
 	}
+
+	public function clear_return($data)
+	{
+		try {
+			$this->load->library('form_validation');
+			$this->form_validation->set_data($data);
+			$this->form_validation->set_rules('stockDistributorId', 'Stock Distributor Id ', 'required|max_length[50]');
+			$this->form_validation->set_rules('stockProductId', 'Stock Product Id', 'required|max_length[100]');
+
+			if ($this->form_validation->run() == false) throw new Exception(validation_errors());
+
+			$this->db->trans_start(); // Start transaction
+
+			$update['stockDistributorId'] = $data['stockDistributorId'];
+			$update['stockProductId'] = $data['stockProductId'];
+
+			print_r($update);
+			$this->db->set('returnQty', 0);
+			$this->db->set('returnClearedOn', 'NOW()', false);
+			$this->db->where('stockDistributorId', $update['stockDistributorId']);
+			$this->db->where('stockProductId', $update['stockProductId']);
+			$this->db->update('stock', $update);
+
+			// Get the updated item's id
+			$updatedItemId = $this->db->insert_id();
+
+			$this->db->trans_complete();
+			// Return the updated item's id
+			return $updatedItemId;
+		} catch (Exception $e) {
+			// echo $e->getMessage();
+			log_message('error', 'Error in create_teams: ' . $e->getMessage());
+			$this->db->trans_rollback();
+			throw $e;
+			return false;
+		}
+	}
+
 
 	public function delete_stock($distributorId, $productId)
 	{

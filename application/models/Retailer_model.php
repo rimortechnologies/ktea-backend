@@ -22,11 +22,22 @@ class Retailer_model extends CI_Model
 			$conditions['retailerActive'] = $_GET['status'];
 		}
 
-		if (isset($_GET['routeId'])) {
-			$conditions['retailerRoute'] = $_GET['routeId'];
-		}
 
 		$countQueryBuilder = clone $this->db;
+
+		if (isset($_GET['routeId'])) {
+			$routeIds = explode(',', $_GET['routeId']);
+			$countQueryBuilder->where_in('a.retailerRoute', $routeIds);
+		}
+
+		// Use where method separately for each condition
+		foreach ($conditionsForCount as $field => $value) {
+			if ($field === 'retailerRoute' && is_array($value)) {
+				$countQueryBuilder->where_in($field, $value);
+			} else {
+				$countQueryBuilder->where($field, $value);
+			}
+		}
 
 		$countQueryBuilder->select('COUNT(*) as count')
 			->join('city', 'city.id = a.retailerCity', 'left')
@@ -36,6 +47,8 @@ class Retailer_model extends CI_Model
 			->or_like('a.retailerName', $search)
 			->or_like('a.retailerContactNumber', $search)
 			->or_like('a.retailerArea', $search)
+			->or_like('a.retailerGst', $search)
+			->or_like('a.retailerAddress', $search)
 			->or_like('a.retailerEmail', $search)
 			->group_end();
 
@@ -44,15 +57,32 @@ class Retailer_model extends CI_Model
 		$num_results = $countResult->count;
 
 		$this->db->group_start()
-			->select('a.*, city.cityName,route.routeName')
+			->select('a.id,a.retailerShopName,a.retailerName,a.retailerGst,a.retailerShopImage,a.retailerLat,a.retailerLong,a.retailerContactNumber,a.retailerActive,a.retailerApproved,a.retailerArea,a.retailerAddress,a.retailerCity,a.retailerRoute,retailerEmail,a.createdBy,a.created_date,a.updated_date,a.retailerImage,a.isAdminAdded, city.cityName,route.routeName')
 			->join('city', 'city.id = a.retailerCity', 'left')
 			->join('route', 'route.id = a.retailerRoute', 'left')
 			->or_like('a.retailerShopName', $search)
 			->or_like('a.retailerName', $search)
+			->or_like('a.retailerGst', $search)
+			->or_like('a.retailerAddress', $search)
 			->or_like('a.retailerContactNumber', $search)
 			->or_like('a.retailerArea', $search)
 			->or_like('a.retailerEmail', $search)
 			->group_end();
+
+		if (isset($_GET['routeId'])) {
+			$routeIds = explode(',', $_GET['routeId']);
+			$this->db->where_in('a.retailerRoute', $routeIds);
+		}
+
+		// Use where method separately for each condition in the main query
+		foreach ($conditions as $field => $value) {
+			if ($field === 'retailerRoute' && is_array($value)) {
+				$this->db->where_in($field, $value);
+			} else {
+				$this->db->where($field, $value);
+			}
+		}
+
 
 
 		$sortField = 'a.created_date';
@@ -143,48 +173,76 @@ class Retailer_model extends CI_Model
 		$this->form_validation->set_rules('retailerShopName', 'Retailer Shop Name', 'required|max_length[100]');
 		$this->form_validation->set_rules('retailerEmail', 'Retailer Email', 'max_length[200]|valid_email|is_unique[retailer.retailerEmail]');
 		$this->form_validation->set_rules('retailerName', 'Retailer Name', 'required|max_length[100]');
-		$this->form_validation->set_rules('retailerLat', 'Retailer Lat', 'required|max_length[100]');
-		$this->form_validation->set_rules('retailerLong', 'Retailer Long', 'required|max_length[100]');
 		$this->form_validation->set_rules('retailerContactNumber', 'Retailer Contact Number', 'required|numeric|max_length[10]|min_length[10]');
 		$this->form_validation->set_rules('retailerActive', 'Retailer Active ', 'max_length[100]');
 		$this->form_validation->set_rules('retailerApproved', 'Retailer Approved ', 'max_length[100]');
 		$this->form_validation->set_rules('retailerArea', 'Retailer Area ', 'required|max_length[100]');
-		$this->form_validation->set_rules('retailerCity', 'Retailer City ', 'required|max_length[100]');
+		// $this->form_validation->set_rules('retailerCity', 'Retailer City ', 'required|max_length[100]');
 		$this->form_validation->set_rules('retailerRoute', 'Retailer Route ', 'required|max_length[100]');
 
+
+
 		if ($this->form_validation->run() == false) {
-			return false; // Validation failed
+			return false;
 		}
-		$insert['id'] = generate_uuid();
-		$insert['createdBy'] = getCreatedBy();
-		$insert['retailerShopName'] = $data['retailerShopName'];
-		$insert['retailerEmail'] = $data['retailerEmail'] ?? '';
-		$insert['retailerName'] = $data['retailerName'];
-		$insert['retailerLat'] = $data['retailerLat'];
-		$insert['retailerLong'] = $data['retailerLong'];
-		$insert['retailerContactNumber'] = $data['retailerContactNumber'];
-		$insert['retailerActive'] = 1;
-		$insert['retailerApproved'] = $data['retailerApproved'] ?? 0;
-		$insert['isAdminAdded'] = $data['isAdminAdded'] ?? 0;
-		$insert['retailerArea'] = $data['retailerArea'];
-		$insert['retailerCity'] = $data['retailerCity'];
-		$insert['retailerRoute'] = $data['retailerRoute'];
-		//if(isset($data['retailerShopImage'])){
-		//$imagedata = explode(';base64,', $data['retailerShopImage']);
-		//$insert['retailerShopImage']=uploadImage($imagedata,'retailer',$insert['id']);
-		//}
-		//if(isset($data['retailerImage'])){
-		//	$imagedata = explode(';base64,', $data['retailerImage']);
-		//$update['retailerImage']=uploadImage($imagedata,'retailer',$insert['id']);
-		//}
 
-		$insert['retailerImage'] = $data['retailerImage'];
-		// $insert['retailerShopImage'] = $data['retailerShopImage'];
+		// $this->db->trans_start();
+
+		try {
+
+			// Fetch routeCity from route table based on retailerRoute ID
+			$routeId = $data['retailerRoute'];
+			$routeCity = $this->db->select('routeCity')->get_where('route', ['id' => $routeId])->row('routeCity');
+
+			if (!$routeCity) {
+				// Handle the case where routeCity is not found
+				return false;
+			}
+
+			$insert['retailerCity'] = $routeCity;  // Set retailerCity based on routeCity
+
+			$insert['id'] = generate_uuid();
+			$insert['createdBy'] = getCreatedBy();
+			$insert['retailerShopName'] = $data['retailerShopName'];
+			$insert['retailerEmail'] = $data['retailerEmail'] ?? '';
+			$insert['retailerName'] = $data['retailerName'];
+			$insert['retailerLat'] = $data['retailerLat'] ?? null;
+			$insert['retailerLong'] = $data['retailerLong'] ?? null;
+			$insert['retailerContactNumber'] = $data['retailerContactNumber'];
+			$insert['retailerActive'] = 1;
+			$insert['retailerApproved'] = $data['retailerApproved'] ?? 0;
+			$insert['isAdminAdded'] = $data['isAdminAdded'] ?? 0;
+			$insert['retailerArea'] = $data['retailerArea'];
+			// $insert['retailerCity'] = $data['retailerCity'];
+			$insert['retailerGst'] = $data['retailerGst'] ?? '';
+			$insert['retailerAddress'] = $data['retailerAddress'] ?? '';
+			$insert['retailerTempId'] = $data['retailerTempId'] ?? '';
+			$insert['retailerRoute'] = $data['retailerRoute'];
+
+			if (isset($data['timestamp']) && !empty($data['timestamp'])) {
+				// If timestamp is set, use it
+				$createdDate = date('Y-m-d H:i:s', $data['timestamp']);
+			} else {
+				// If timestamp is not set, use the current time
+				$createdDate = date('Y-m-d H:i:s');
+			}
+
+			$insert['created_date'] = $createdDate;
+
+			if (isset($data['retailerImage'])) {
+				$insert['retailerImage'] = $data['retailerImage'];
+			}
 
 
-		$insert['password'] = $this->bcrypt->hash_password(getPassword());
-		$this->db->insert('retailer', $insert);
-		return $this->get_retailer($insert['id']);
+			$insert['password'] = $this->bcrypt->hash_password(getPassword());
+			$this->db->insert('retailer', $insert);
+			return $this->get_retailer($insert['id']);
+		} catch (Exception $e) {
+			// An error occurred, rollback the transaction
+			print_r($e);
+			// $this->db->trans_rollback();
+			return false;
+		}
 	}
 
 	public function update_retailer($retailerId, $data)
@@ -194,8 +252,8 @@ class Retailer_model extends CI_Model
 		$this->form_validation->set_rules('retailerShopName', 'Retailer Shop Name', 'required|max_length[100]');
 		$this->form_validation->set_rules('retailerName', 'Retailer Name', 'required|max_length[100]');
 		$this->form_validation->set_rules('retailerEmail', 'Retailer Email', 'max_length[200]|valid_email');
-		$this->form_validation->set_rules('retailerLat', 'Retailer Lat', 'required|max_length[100]');
-		$this->form_validation->set_rules('retailerLong', 'Retailer Long', 'required|max_length[100]');
+		// $this->form_validation->set_rules('retailerLat', 'Retailer Lat', 'required|max_length[100]');
+		// $this->form_validation->set_rules('retailerLong', 'Retailer Long', 'required|max_length[100]');
 		$this->form_validation->set_rules('retailerContactNumber', 'Retailer Contact Number', 'required|numeric|max_length[10]|min_length[10]');
 		$this->form_validation->set_rules('retailerActive', 'Retailer Active ', 'required|max_length[100]');
 		$this->form_validation->set_rules('retailerApproved', 'Retailer Approved ', 'max_length[100]');
@@ -209,8 +267,8 @@ class Retailer_model extends CI_Model
 		$update['retailerShopName'] = $data['retailerShopName'];
 		$update['retailerName'] = $data['retailerName'];
 		$update['retailerEmail'] = $data['retailerEmail'] ?? '';
-		$update['retailerLat'] = $data['retailerLat'];
-		$update['retailerLong'] = $data['retailerLong'];
+		$update['retailerLat'] = $data['retailerLat'] ?? null;
+		$update['retailerLong'] = $data['retailerLong'] ?? null;
 		$update['retailerContactNumber'] = $data['retailerContactNumber'];
 		$update['retailerActive'] = $data['retailerActive'];
 		$update['retailerApproved'] = $data['retailerApproved'] ?? 0;
@@ -218,6 +276,8 @@ class Retailer_model extends CI_Model
 		$update['retailerApproved'] = $update['isAdminAdded'] == 0 ? 0 : 1;
 		$update['retailerArea'] = $data['retailerArea'];
 		$update['retailerCity'] = $data['retailerCity'];
+		$update['retailerGst'] = $data['retailerGst'];
+		$update['retailerAddress'] = $data['retailerAddress'];
 		$update['retailerRoute'] = $data['retailerRoute'];
 		//if(isset($data['retailerShopImage'])){
 		//$imagedata = explode(';base64,', $data['retailerShopImage']);
@@ -227,9 +287,10 @@ class Retailer_model extends CI_Model
 		//	$imagedata = explode(';base64,', $data['retailerImage']);
 		//$update['retailerImage']=uploadImage($imagedata,'retailer',$retailerId);
 		//}
-
-		$update['retailerImage'] = $data['retailerImage'];
-		$update['retailerShopImage'] = $data['retailerShopImage'];
+		if (isset($data['retailerImage'])) {
+			$update['retailerImage'] = $data['retailerImage'];
+		}
+		// $update['retailerShopImage'] = $data['retailerShopImage'];
 		$this->db->where('id', $retailerId);
 		$this->db->update('retailer', $update);
 		return $this->get_retailer($retailerId);

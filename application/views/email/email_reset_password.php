@@ -129,7 +129,7 @@
     <tr style="padding: 50px;">
       <td valign="center" style="text-align: center;">
         <div style="padding: 50px;">
-          <a href="<?= base_url(); ?>v1/reset-password?user=<?= $info['type']; ?>&token=<?php echo $info['token']; ?>" style="background-color: #2b90d9;color:#ffffff;padding: 15px 20px;border-radius: 2px;box-shadow: 0px 3px 5px 1px rgba(0,0,0,0.2);margin: auto;">Reset Now</a>
+          <a href="<?php echo $info['url']; ?>/reset-password?user=<?= $info['type']; ?>&token=<?php echo $info['token']; ?>" style="background-color: #2b90d9;color:#ffffff;padding: 15px 20px;border-radius: 2px;box-shadow: 0px 3px 5px 1px rgba(0,0,0,0.2);margin: auto;">Reset Now</a>
         </div>
       </td>
     </tr>

@@ -33,6 +33,30 @@ class Stock extends REST_Controller
 			'count' => $stocks['count'] ?? 0,
 		], REST_Controller::HTTP_OK);
 	}
+
+	public function clear_return_post()
+	{
+		try {
+			$request = json_decode(file_get_contents('php://input'), true);
+
+			// Check if the request data is a valid JSON array
+			if (!is_array($request)) {
+				$this->response([
+					'status' => REST_Controller::HTTP_BAD_REQUEST,
+					'error' => 'Invalid Request. Not a valid JSON.'
+				], REST_Controller::HTTP_BAD_REQUEST);
+			} else {
+				// Call the accept_order method from the Orders_model
+				$result = $this->Stock_model->clear_return($request);
+				// If everything is okay, send the result
+				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Return Stock Cleared'], REST_Controller::HTTP_OK);
+			}
+		} catch (Exception $e) {
+			// Catch any exceptions and send the error message in the response
+			$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+		}
+	}
+
 	public function index_post()
 	{
 		$request = json_decode(file_get_contents('php://input'), true);

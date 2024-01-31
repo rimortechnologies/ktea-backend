@@ -76,10 +76,14 @@ $route['v1/stop']                                                         = 'sto
 $route['v1/stop/(:any)']                                           = 'stop/$1';
 //salesrepresentative 
 $route['v1/salesrepresentative']                                = 'salesrepresentative';
+$route['v1/salesrepresentative/my-info/(:any)']                                = 'salesrepresentative/get_my_info/$1';
 $route['v1/salesrepresentative/(:any)']                        = 'salesrepresentative/$1';
 //category 
 $route['v1/category']                                              = 'category';
 $route['v1/category/(:any)']                                       = 'category/$1';
+//hsn
+$route['v1/hsn']                                              = 'hsn';
+$route['v1/hsn/(:any)']                                       = 'hsn/$1';
 //retailer
 $route['v1/retailer']                                                  = 'retailer';
 $route['v1/retailer/(:any)']                                           = 'retailer/$1';
@@ -91,9 +95,15 @@ $route['v1/product']                                                  = 'product
 $route['v1/product/(:any)']                                        = 'product/$1';
 //stock
 $route['v1/stock']                                                          = 'stock';
+$route['v1/stock/clear-return']                                              = 'stock/clear_return';
 $route['v1/stock/(:any)']                                                  = 'stock/$1';
 $route['v1/stock-summary/(:any)']                                                  = 'stock/stock_summary/$1';
 $route['v1/stock/(:any)/(:any)']                                                  = 'stock/$1/$2';
+
+//margin
+$route['v1/margin']                                                          = 'margin';
+$route['v1/margin/(:any)']                                                  = 'margin/$1';
+
 //variant
 $route['v1/variant']                                                      = 'variant';
 $route['v1/variant/(:any)']                                       = 'variant/$1';
@@ -101,6 +111,7 @@ $route['v1/variant/(:any)']                                       = 'variant/$1'
 $route['v1/units']                                                          = 'admin/units';
 //status
 $route['v1/status']                                                      = 'admin/status';
+$route['v1/routes-cities']                                                      = 'admin/cities_with_routes';
 
 $route['v1/forgot-password']                                        = 'admin/forget_password';
 $route['v1/distributor-reset-password']                                        = 'admin/reset_password_distributor';
@@ -114,6 +125,7 @@ $route['v1/login/salesrepresentative']                                = 'auth/lo
 
 
 $route['v1/schedules']                                                          = 'schedule';
+$route['v1/schedules/rep']                                                          = 'schedule/salesrep_schedule';
 $route['v1/day-schedule']                                                          = 'schedule/today_schedule';
 $route['v1/schedules/(:any)']                                                  = 'schedule/$1';
 
@@ -124,6 +136,7 @@ $route['v1/teams/(:any)']                                       = 'teams/$1';
 //orders
 $route['v1/orders']                                                  = 'orders';
 $route['v1/order-approve']                                                  = 'orders/accept_order';
+$route['v1/order-summary']                                                  = 'orders/order_summary';
 $route['v1/orders/cancel']                                                  = 'orders/order_cancel';
 $route['v1/orders/(:any)']                                            = 'orders/$1';
 

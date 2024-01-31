@@ -24,51 +24,56 @@ class Orders extends REST_Controller
 		$this->response([
 			'status' => REST_Controller::HTTP_OK,
 			'data' => $orders['data'] ?? [],
-			'count' => $orders['count'] ?? 0
+			'count' => $orders['count'] ?? 0,
+			'summary' => $orders['summary'] ?? []
 		], REST_Controller::HTTP_OK);
 	}
 	public function index_post()
 	{
-		$request = json_decode(file_get_contents('php://input'), true);
-		// print_r($request);
-		if (!is_array($request)) {
-			$this->response([
-				'status' => REST_Controller::HTTP_BAD_REQUEST,
-				'error' => 'Invalid Request Not a valid json'
-			], REST_Controller::HTTP_BAD_REQUEST);
-		} else {
-			$result = $this->Orders_model->create_Order($request);
-			if ($result == false) {
-				$errors = $this->form_validation->error_array();
-				$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => $errors], REST_Controller::HTTP_BAD_REQUEST);
-			} elseif ($result) {
-				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Inserted successfully.'], REST_Controller::HTTP_OK);
+
+		try {
+			$request = json_decode(file_get_contents('php://input'), true);
+
+			// Check if the request data is a valid JSON array
+			if (!is_array($request)) {
+				$this->response([
+					'status' => REST_Controller::HTTP_BAD_REQUEST,
+					'error' => 'Invalid Request. Not a valid JSON.'
+				], REST_Controller::HTTP_BAD_REQUEST);
 			} else {
-				$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Failed to Add Order.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+				// Call the accept_order method from the Orders_model
+				$result = $this->Orders_model->create_Order($request);
+				// If everything is okay, send the result
+				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Created'], REST_Controller::HTTP_OK);
 			}
+		} catch (Exception $e) {
+			// Catch any exceptions and send the error message in the response
+			echo $e->getMessage();
+			$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
 	}
 
 
 	public function order_cancel_post()
 	{
-		$request = json_decode(file_get_contents('php://input'), true);
-		// print_r($request);
-		if (!is_array($request)) {
-			$this->response([
-				'status' => REST_Controller::HTTP_BAD_REQUEST,
-				'error' => 'Invalid Request Not a valid json'
-			], REST_Controller::HTTP_BAD_REQUEST);
-		} else {
-			$result = $this->Orders_model->cancel_order($request);
-			if ($result == false) {
-				$errors = $this->form_validation->error_array();
-				$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => $errors], REST_Controller::HTTP_BAD_REQUEST);
-			} elseif ($result) {
-				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Cannot cancel after completed'], REST_Controller::HTTP_OK);
+		try {
+			$request = json_decode(file_get_contents('php://input'), true);
+
+			// Check if the request data is a valid JSON array
+			if (!is_array($request)) {
+				$this->response([
+					'status' => REST_Controller::HTTP_BAD_REQUEST,
+					'error' => 'Invalid Request. Not a valid JSON.'
+				], REST_Controller::HTTP_BAD_REQUEST);
 			} else {
-				$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Cannot cancel after completed'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+				// Call the accept_order method from the Orders_model
+				$result = $this->Orders_model->cancel_order($request);
+				// If everything is okay, send the result
+				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Cancelled'], REST_Controller::HTTP_OK);
 			}
+		} catch (Exception $e) {
+			// Catch any exceptions and send the error message in the response
+			$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -95,31 +100,67 @@ class Orders extends REST_Controller
 	// }
 
 
+	// public function accept_order_put()
+	// {
+	// 	$request = json_decode(file_get_contents('php://input'), true);
+	// 	// print_r($request);
+	// 	if (!is_array($request)) {
+	// 		$this->response([
+	// 			'status' => REST_Controller::HTTP_BAD_REQUEST,
+	// 			'error' => 'Invalid Request Not a valid json'
+	// 		], REST_Controller::HTTP_BAD_REQUEST);
+	// 	} else {
+	// 		$result = $this->Orders_model->accept_order($request);
+	// 		if ($result == false) {
+	// 			$errors = $this->form_validation->error_array();
+	// 			$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => $errors], REST_Controller::HTTP_BAD_REQUEST);
+	// 		} elseif ($result) {
+	// 			$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Approved'], REST_Controller::HTTP_OK);
+	// 		} else {
+	// 			$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Failed to Approve Order.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+	// 		}
+	// 	}
+	// }
+
 	public function accept_order_put()
 	{
-		$request = json_decode(file_get_contents('php://input'), true);
-		// print_r($request);
-		if (!is_array($request)) {
-			$this->response([
-				'status' => REST_Controller::HTTP_BAD_REQUEST,
-				'error' => 'Invalid Request Not a valid json'
-			], REST_Controller::HTTP_BAD_REQUEST);
-		} else {
-			$result = $this->Orders_model->accept_order($request);
-			if ($result == false) {
-				$errors = $this->form_validation->error_array();
-				$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => $errors], REST_Controller::HTTP_BAD_REQUEST);
-			} elseif ($result) {
-				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Approved'], REST_Controller::HTTP_OK);
+		try {
+			$request = json_decode(file_get_contents('php://input'), true);
+
+			// Check if the request data is a valid JSON array
+			if (!is_array($request)) {
+				$this->response([
+					'status' => REST_Controller::HTTP_BAD_REQUEST,
+					'error' => 'Invalid Request. Not a valid JSON.'
+				], REST_Controller::HTTP_BAD_REQUEST);
 			} else {
-				$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => 'Failed to Approve Order.'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+				// Call the accept_order method from the Orders_model
+				$result = $this->Orders_model->accept_order($request);
+				// If everything is okay, send the result
+				$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result, 'message' => 'Order Approved'], REST_Controller::HTTP_OK);
 			}
+		} catch (Exception $e) {
+			// Catch any exceptions and send the error message in the response
+			$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 		}
 	}
+
 
 	public function my_analytics_get($type = '', $repId = '')
 	{
 		$result = $this->Orders_model->get_order_analytics($type, $repId);
+		if ($result == false) {
+			$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => 'Invalid Request data'], REST_Controller::HTTP_BAD_REQUEST);
+		} else {
+			$this->response([
+				'status' => REST_Controller::HTTP_OK,
+				'data' => $result
+			], REST_Controller::HTTP_OK);
+		}
+	}
+	public function order_summary_get()
+	{
+		$result = $this->Orders_model->get_order_summary();
 		if ($result == false) {
 			$this->response(['status' => REST_Controller::HTTP_BAD_REQUEST, 'error' => 'Invalid Request data'], REST_Controller::HTTP_BAD_REQUEST);
 		} else {

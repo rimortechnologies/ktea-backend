@@ -26,6 +26,20 @@ class Schedule extends REST_Controller
 		], REST_Controller::HTTP_OK);
 	}
 
+	public function salesrep_schedule_get()
+	{
+
+		try {
+			// Call the accept_order method from the Orders_model
+			$result = $this->Schedule_model->get_schedule_by_month_and_rep();
+			// If everything is okay, send the result
+			$this->response(['status' => REST_Controller::HTTP_OK, 'data' => $result], REST_Controller::HTTP_OK);
+		} catch (Exception $e) {
+			// Catch any exceptions and send the error message in the response
+			$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+		}
+	}
+
 	public function today_schedule_get()
 	{
 		// $request = json_decode(file_get_contents('php://input'), true);
@@ -36,13 +50,18 @@ class Schedule extends REST_Controller
 		// 		'error' => 'Invalid Request Not a valid json'
 		// 	], REST_Controller::HTTP_BAD_REQUEST);
 		// } else {
-		$schedule = $this->Schedule_model->get_schedule_by_rep_and_date();
-		$this->response([
-			'status' => REST_Controller::HTTP_OK,
-			'data' => $schedule['data'][0] ?? [],
-			'count' => $schedule['count'] ?? 0,
-		], REST_Controller::HTTP_OK);
-		// }
+		try {
+			$schedule = $this->Schedule_model->get_schedule_by_rep_and_date();
+			$this->response([
+				'status' => REST_Controller::HTTP_OK,
+				'data' => $schedule['data'][0] ?? [],
+				'count' => $schedule['count'] ?? 0,
+			], REST_Controller::HTTP_OK);
+			// }
+		} catch (Exception $e) {
+			// Catch any exceptions and send the error message in the response
+			$this->response(['status' => REST_Controller::HTTP_INTERNAL_SERVER_ERROR, 'error' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+		}
 	}
 
 	public function index_post()
